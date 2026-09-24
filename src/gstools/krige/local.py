@@ -19,7 +19,14 @@ from gstools.krige.tools import set_condition
 from gstools.tools.geometric import rotated_main_axes
 from gstools.variogram import vario_estimate
 
-__all__ = ["LocalKrige"]
+__all__ = [
+    "LocalKrige",
+    "LocalSimple",
+    "LocalOrdinary",
+    "LocalUniversal",
+    "LocalExtDrift",
+    "LocalDetrended",
+]
 
 
 # model classes GSTools-Core's CovModelSpec (covmodel_spec.rs) currently
@@ -463,3 +470,408 @@ class LocalKrige(Krige):
         if value <= 0:
             raise ValueError("LocalKrige: local_radius must be > 0.")
         self._local_radius = value
+
+
+class LocalSimple(LocalKrige):
+    """
+    Local simple kriging.
+
+    Local simple kriging is used to interpolate data with a given mean,
+    using only the conditioning points within ``local_radius`` of each
+    target point. See :any:`LocalKrige` and :any:`gstools.krige.Simple`.
+
+    Parameters
+    ----------
+    model : :any:`CovModel`
+        Covariance Model used for kriging.
+    cond_pos : :class:`list`
+        tuple, containing the given condition positions (x, [y, z])
+    cond_val : :class:`numpy.ndarray`
+        the values of the conditions (nan values will be ignored)
+    local_radius : :class:`float`
+        Search radius (in the model's isometrized/isotropic distance):
+        every conditioning point within this distance of a target
+        point enters its local kriging system.
+    mean : :class:`float`, optional
+        mean value used to shift normalized conditioning data.
+        Could also be a callable. The default is None.
+    normalizer : :any:`None` or :any:`Normalizer`, optional
+        Normalizer to be applied to the input data to gain normality.
+        The default is None.
+    trend : :any:`None` or :class:`float` or :any:`callable`, optional
+        A callable trend function. Should have the signature: f(x, [y, z, ...])
+        This is used for detrended kriging, where the trended is subtracted
+        from the conditions before kriging is applied.
+        This can be used for regression kriging, where the trend function
+        is determined by an external regression algorithm.
+        If no normalizer is applied, this behaves equal to 'mean'.
+        The default is None.
+    exact : :class:`bool`, optional
+        Whether the interpolator should reproduce the exact input values.
+        If `False`, `cond_err` is interpreted as measurement error
+        at the conditioning points and the result will be more smooth.
+        Default: False
+    cond_err : :class:`str`, :class :class:`float` or :class:`list`, optional
+        The measurement error at the conditioning points.
+        Either "nugget" to apply the model-nugget, a single value applied to
+        all points or an array with individual values for each point.
+        The measurement error has to be <= nugget.
+        The "exact=True" variant only works with "cond_err='nugget'".
+        Default: "nugget"
+    fit_normalizer : :class:`bool`, optional
+        Whether to fit the data-normalizer to the given conditioning data.
+        Default: False
+    fit_variogram : :class:`bool`, optional
+        Whether to fit the given variogram model to the data.
+        Default: False
+    """
+
+    def __init__(
+        self,
+        model,
+        cond_pos,
+        cond_val,
+        local_radius,
+        mean=0.0,
+        normalizer=None,
+        trend=None,
+        exact=False,
+        cond_err="nugget",
+        fit_normalizer=False,
+        fit_variogram=False,
+    ):
+        super().__init__(
+            model,
+            cond_pos,
+            cond_val,
+            local_radius,
+            mean=mean,
+            normalizer=normalizer,
+            trend=trend,
+            unbiased=False,
+            exact=exact,
+            cond_err=cond_err,
+            fit_normalizer=fit_normalizer,
+            fit_variogram=fit_variogram,
+        )
+
+
+class LocalOrdinary(LocalKrige):
+    """
+    Local ordinary kriging.
+
+    Local ordinary kriging is used to interpolate data and estimate a
+    proper mean, using only the conditioning points within
+    ``local_radius`` of each target point. See :any:`LocalKrige` and
+    :any:`gstools.krige.Ordinary`.
+
+    Parameters
+    ----------
+    model : :any:`CovModel`
+        Covariance Model used for kriging.
+    cond_pos : :class:`list`
+        tuple, containing the given condition positions (x, [y, z])
+    cond_val : :class:`numpy.ndarray`
+        the values of the conditions (nan values will be ignored)
+    local_radius : :class:`float`
+        Search radius (in the model's isometrized/isotropic distance):
+        every conditioning point within this distance of a target
+        point enters its local kriging system.
+    normalizer : :any:`None` or :any:`Normalizer`, optional
+        Normalizer to be applied to the input data to gain normality.
+        The default is None.
+    trend : :any:`None` or :class:`float` or :any:`callable`, optional
+        A callable trend function. Should have the signature: f(x, [y, z, ...])
+        This is used for detrended kriging, where the trended is subtracted
+        from the conditions before kriging is applied.
+        This can be used for regression kriging, where the trend function
+        is determined by an external regression algorithm.
+        If no normalizer is applied, this behaves equal to 'mean'.
+        The default is None.
+    exact : :class:`bool`, optional
+        Whether the interpolator should reproduce the exact input values.
+        If `False`, `cond_err` is interpreted as measurement error
+        at the conditioning points and the result will be more smooth.
+        Default: False
+    cond_err : :class:`str`, :class :class:`float` or :class:`list`, optional
+        The measurement error at the conditioning points.
+        Either "nugget" to apply the model-nugget, a single value applied to
+        all points or an array with individual values for each point.
+        The measurement error has to be <= nugget.
+        The "exact=True" variant only works with "cond_err='nugget'".
+        Default: "nugget"
+    fit_normalizer : :class:`bool`, optional
+        Whether to fit the data-normalizer to the given conditioning data.
+        Default: False
+    fit_variogram : :class:`bool`, optional
+        Whether to fit the given variogram model to the data.
+        Default: False
+    """
+
+    def __init__(
+        self,
+        model,
+        cond_pos,
+        cond_val,
+        local_radius,
+        normalizer=None,
+        trend=None,
+        exact=False,
+        cond_err="nugget",
+        fit_normalizer=False,
+        fit_variogram=False,
+    ):
+        super().__init__(
+            model,
+            cond_pos,
+            cond_val,
+            local_radius,
+            normalizer=normalizer,
+            trend=trend,
+            exact=exact,
+            cond_err=cond_err,
+            fit_normalizer=fit_normalizer,
+            fit_variogram=fit_variogram,
+        )
+
+
+class LocalUniversal(LocalKrige):
+    """
+    Local universal kriging.
+
+    Local universal kriging is used to interpolate given data with a
+    variable mean determined by a functional drift, using only the
+    conditioning points within ``local_radius`` of each target point.
+    See :any:`LocalKrige` and :any:`gstools.krige.Universal`.
+
+    This estimator is set to be unbiased by default.
+
+    Parameters
+    ----------
+    model : :any:`CovModel`
+        Covariance Model used for kriging.
+    cond_pos : :class:`list`
+        tuple, containing the given condition positions (x, [y, z])
+    cond_val : :class:`numpy.ndarray`
+        the values of the conditions (nan values will be ignored)
+    local_radius : :class:`float`
+        Search radius (in the model's isometrized/isotropic distance):
+        every conditioning point within this distance of a target
+        point enters its local kriging system.
+    drift_functions : :class:`list` of :any:`callable`, :class:`str` or :class:`int`
+        Either a list of callable functions, an integer representing
+        the polynomial order of the drift or one of the following strings:
+
+            * "linear" : regional linear drift (equals order=1)
+            * "quadratic" : regional quadratic drift (equals order=2)
+
+    normalizer : :any:`None` or :any:`Normalizer`, optional
+        Normalizer to be applied to the input data to gain normality.
+        The default is None.
+    trend : :any:`None` or :class:`float` or :any:`callable`, optional
+        A callable trend function. Should have the signature: f(x, [y, z, ...])
+        This is used for detrended kriging, where the trended is subtracted
+        from the conditions before kriging is applied.
+        This can be used for regression kriging, where the trend function
+        is determined by an external regression algorithm.
+        If no normalizer is applied, this behaves equal to 'mean'.
+        The default is None.
+    exact : :class:`bool`, optional
+        Whether the interpolator should reproduce the exact input values.
+        If `False`, `cond_err` is interpreted as measurement error
+        at the conditioning points and the result will be more smooth.
+        Default: False
+    cond_err : :class:`str`, :class :class:`float` or :class:`list`, optional
+        The measurement error at the conditioning points.
+        Either "nugget" to apply the model-nugget, a single value applied to
+        all points or an array with individual values for each point.
+        The measurement error has to be <= nugget.
+        The "exact=True" variant only works with "cond_err='nugget'".
+        Default: "nugget"
+    fit_normalizer : :class:`bool`, optional
+        Whether to fit the data-normalizer to the given conditioning data.
+        Default: False
+    fit_variogram : :class:`bool`, optional
+        Whether to fit the given variogram model to the data.
+        Default: False
+    """
+
+    def __init__(
+        self,
+        model,
+        cond_pos,
+        cond_val,
+        local_radius,
+        drift_functions,
+        normalizer=None,
+        trend=None,
+        exact=False,
+        cond_err="nugget",
+        fit_normalizer=False,
+        fit_variogram=False,
+    ):
+        super().__init__(
+            model,
+            cond_pos,
+            cond_val,
+            local_radius,
+            drift_functions=drift_functions,
+            normalizer=normalizer,
+            trend=trend,
+            exact=exact,
+            cond_err=cond_err,
+            fit_normalizer=fit_normalizer,
+            fit_variogram=fit_variogram,
+        )
+
+
+class LocalExtDrift(LocalKrige):
+    """
+    Local external drift kriging (local EDK).
+
+    Local external drift kriging is used to interpolate given data with
+    a variable mean determined by an external drift, using only the
+    conditioning points within ``local_radius`` of each target point.
+    See :any:`LocalKrige` and :any:`gstools.krige.ExtDrift`.
+
+    This estimator is set to be unbiased by default.
+
+    Parameters
+    ----------
+    model : :any:`CovModel`
+        Covariance Model used for kriging.
+    cond_pos : :class:`list`
+        tuple, containing the given condition positions (x, [y, z])
+    cond_val : :class:`numpy.ndarray`
+        the values of the conditions (nan values will be ignored)
+    local_radius : :class:`float`
+        Search radius (in the model's isometrized/isotropic distance):
+        every conditioning point within this distance of a target
+        point enters its local kriging system.
+    ext_drift : :class:`numpy.ndarray`
+        the external drift values at the given condition positions.
+    normalizer : :any:`None` or :any:`Normalizer`, optional
+        Normalizer to be applied to the input data to gain normality.
+        The default is None.
+    trend : :any:`None` or :class:`float` or :any:`callable`, optional
+        A callable trend function. Should have the signature: f(x, [y, z, ...])
+        This is used for detrended kriging, where the trended is subtracted
+        from the conditions before kriging is applied.
+        This can be used for regression kriging, where the trend function
+        is determined by an external regression algorithm.
+        If no normalizer is applied, this behaves equal to 'mean'.
+        The default is None.
+    exact : :class:`bool`, optional
+        Whether the interpolator should reproduce the exact input values.
+        If `False`, `cond_err` is interpreted as measurement error
+        at the conditioning points and the result will be more smooth.
+        Default: False
+    cond_err : :class:`str`, :class :class:`float` or :class:`list`, optional
+        The measurement error at the conditioning points.
+        Either "nugget" to apply the model-nugget, a single value applied to
+        all points or an array with individual values for each point.
+        The measurement error has to be <= nugget.
+        The "exact=True" variant only works with "cond_err='nugget'".
+        Default: "nugget"
+    fit_normalizer : :class:`bool`, optional
+        Whether to fit the data-normalizer to the given conditioning data.
+        Default: False
+    fit_variogram : :class:`bool`, optional
+        Whether to fit the given variogram model to the data.
+        Default: False
+    """
+
+    def __init__(
+        self,
+        model,
+        cond_pos,
+        cond_val,
+        local_radius,
+        ext_drift,
+        normalizer=None,
+        trend=None,
+        exact=False,
+        cond_err="nugget",
+        fit_normalizer=False,
+        fit_variogram=False,
+    ):
+        super().__init__(
+            model,
+            cond_pos,
+            cond_val,
+            local_radius,
+            ext_drift=ext_drift,
+            normalizer=normalizer,
+            trend=trend,
+            exact=exact,
+            cond_err=cond_err,
+            fit_normalizer=fit_normalizer,
+            fit_variogram=fit_variogram,
+        )
+
+
+class LocalDetrended(LocalKrige):
+    """
+    Local detrended simple kriging.
+
+    In local detrended kriging, the data is detrended before
+    interpolation by local simple kriging with zero mean, using only
+    the conditioning points within ``local_radius`` of each target
+    point. See :any:`LocalKrige` and :any:`gstools.krige.Detrended`.
+
+    This is just a shortcut for local simple kriging with a given trend
+    function, zero mean and no normalizer.
+
+    Parameters
+    ----------
+    model : :any:`CovModel`
+        Covariance Model used for kriging.
+    cond_pos : :class:`list`
+        tuple, containing the given condition positions (x, [y, z])
+    cond_val : :class:`numpy.ndarray`
+        the values of the conditions (nan values will be ignored)
+    local_radius : :class:`float`
+        Search radius (in the model's isometrized/isotropic distance):
+        every conditioning point within this distance of a target
+        point enters its local kriging system.
+    trend_function : :any:`callable`
+        The callable trend function. Should have the signature: f(x, [y, z])
+    exact : :class:`bool`, optional
+        Whether the interpolator should reproduce the exact input values.
+        If `False`, `cond_err` is interpreted as measurement error
+        at the conditioning points and the result will be more smooth.
+        Default: False
+    cond_err : :class:`str`, :class :class:`float` or :class:`list`, optional
+        The measurement error at the conditioning points.
+        Either "nugget" to apply the model-nugget, a single value applied to
+        all points or an array with individual values for each point.
+        The measurement error has to be <= nugget.
+        The "exact=True" variant only works with "cond_err='nugget'".
+        Default: "nugget"
+    fit_variogram : :class:`bool`, optional
+        Whether to fit the given variogram model to the data.
+        Default: False
+    """
+
+    def __init__(
+        self,
+        model,
+        cond_pos,
+        cond_val,
+        local_radius,
+        trend_function,
+        exact=False,
+        cond_err="nugget",
+        fit_variogram=False,
+    ):
+        super().__init__(
+            model,
+            cond_pos,
+            cond_val,
+            local_radius,
+            trend=trend_function,
+            unbiased=False,
+            exact=exact,
+            cond_err=cond_err,
+            fit_variogram=fit_variogram,
+        )
