@@ -203,6 +203,7 @@ class LocalKrige(Krige):
         pos=None,
         mesh_type="unstructured",
         ext_drift=None,
+        only_mean=False,
         return_var=True,
         post_process=True,
         store=True,
@@ -222,6 +223,13 @@ class LocalKrige(Krige):
             'structured' / 'unstructured'
         ext_drift : :class:`numpy.ndarray` or :any:`None`, optional
             the external drift values at the given positions (only for EDK)
+        only_mean : :class:`bool`, optional
+            Whether to only calculate the mean of the kriging field.
+            Not implemented yet for local kriging -- accepted here (and
+            has to be `False`) only so :any:`LocalKrige` is a drop-in
+            replacement for :any:`Krige` in places like :any:`CondSRF`,
+            which always call with ``only_mean=False``.
+            Default: `False`
         return_var : :class:`bool`, optional
             Whether to return the variance along with the field.
             Default: `True`
@@ -241,6 +249,10 @@ class LocalKrige(Krige):
         krige_var : :class:`numpy.ndarray`, optional
             the kriging error variance (if return_var is True)
         """
+        if only_mean:
+            raise NotImplementedError(
+                "LocalKrige: only_mean=True is not implemented yet."
+            )
         fld_cnt = 2 if return_var else 1
         name, save = self.get_store_config(store, None, fld_cnt)
 

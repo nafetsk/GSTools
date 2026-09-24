@@ -131,3 +131,4 @@ docs/source/sg_execution_times.rst
 
 uv.lock
 test.ipynb
+benchmarking_local_krige.py
